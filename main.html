@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlockVote - Interactive Simulation</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom CSS from style.css */
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --border-radius: 0.5rem;
+            --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            --transition: all 0.3s ease;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark-color);
+            background-color: #f0f2f5;
+        }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.5s; }
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            transition: var(--transition);
+        }
+        .card:hover {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color), #0056b3);
+            color: white;
+            border-radius: var(--border-radius) var(--border-radius) 0 0 !important;
+            font-weight: 600;
+        }
+        .btn {
+            border-radius: var(--border-radius);
+            font-weight: 500;
+            transition: var(--transition);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 0.875rem;
+        }
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        .navbar { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); }
+        .hero-section {
+            background: linear-gradient(135deg, var(--primary-color), #0056b3);
+            color: white;
+            padding: 4rem 0;
+            margin-bottom: 2rem;
+            border-radius: var(--border-radius);
+        }
+        .vote-card {
+            cursor: pointer;
+            transition: var(--transition);
+            border: 2px solid transparent;
+        }
+        .vote-card:hover {
+            border-color: var(--primary-color);
+            transform: scale(1.02);
+        }
+        .vote-card.selected {
+            border-color: var(--success-color);
+            background-color: #f8fff9;
+        }
+        .block-item {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--box-shadow);
+            border-left: 4px solid var(--primary-color);
+        }
+        .block-hash {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: var(--secondary-color);
+            word-break: break-all;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#" onclick="app.navigateTo('index')">
+                <i class="fas fa-vote-yea me-2"></i>BlockVote
+            </a>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto" id="nav-main-links">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="app.navigateTo('index')"><i class="fas fa-home me-1"></i>Home</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav" id="nav-user-links">
+                    <!-- User-specific links will be injected here -->
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container my-4">
+        <div id="flash-container"></div>
+
+        <!-- Index/Home Page -->
+        <div id="index" class="page">
+            <div class="hero-section text-center">
+                <h1 class="display-4 fw-bold mb-4"><i class="fas fa-vote-yea me-3"></i>BlockVote</h1>
+                <p class="lead mb-4">Secure, Transparent, and Immutable Voting Powered by Blockchain Technology</p>
+                <div id="hero-buttons" class="d-flex justify-content-center gap-3"></div>
+            </div>
+            <div id="active-polls-container"></div>
+        </div>
+
+        <!-- Login Page -->
+        <div id="login" class="page">
+            <div class="row justify-content-center">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card shadow">
+                        <div class="card-header text-center"><h3 class="mb-0"><i class="fas fa-sign-in-alt me-2"></i>Login</h3></div>
+                        <div class="card-body p-4">
+                            <form id="login-form">
+                                <div class="mb-3">
+                                    <label for="login-username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="login-username" required value="admin">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="login-password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="login-password" required value="admin">
+                                </div>
+                                <div class="d-grid"><button type="submit" class="btn btn-primary">Login</button></div>
+                            </form>
+                            <hr class="my-4">
+                            <div class="text-center">
+                                <p class="text-muted mb-2">Don't have an account?</p>
+                                <a href="#" onclick="app.navigateTo('register')" class="btn btn-outline-primary">Register Now</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Page -->
+        <div id="register" class="page">
+             <div class="row justify-content-center">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card shadow">
+                        <div class="card-header text-center"><h3 class="mb-0"><i class="fas fa-user-plus me-2"></i>Register</h3></div>
+                        <div class="card-body p-4">
+                            <form id="register-form">
+                                <div class="mb-3">
+                                    <label for="register-username" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="register-username" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="register-password" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="register-password" minlength="6" required>
+                                </div>
+                                 <div class="mb-3">
+                                    <label for="register-confirm-password" class="form-label">Confirm Password</label>
+                                    <input type="password" class="form-control" id="register-confirm-password" required>
+                                </div>
+                                <div class="d-grid"><button type="submit" class="btn btn-success">Create Account</button></div>
+                            </form>
+                             <hr class="my-4">
+                             <div class="text-center">
+                                <p class="text-muted mb-2">Already have an account?</p>
+                                <a href="#" onclick="app.navigateTo('login')" class="btn btn-outline-primary">Login Now</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vote Page -->
+        <div id="vote" class="page">
+            <div class="row justify-content-center">
+                <div class="col-lg-10" id="vote-polls-container">
+                    <!-- Polls will be rendered here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Results Page -->
+        <div id="results" class="page">
+             <div class="row" id="results-container">
+                <!-- Poll result cards will be rendered here -->
+             </div>
+        </div>
+
+        <!-- Admin Dashboard Page -->
+        <div id="admin" class="page">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow">
+                        <div class="card-body">
+                            <h2 class="mb-1"><i class="fas fa-chart-bar me-2"></i>Admin Dashboard</h2>
+                            <p class="text-muted mb-0">Monitor blockchain integrity and manage voting polls</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Poll Management Section -->
+            <div class="card shadow mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0"><i class="fas fa-poll me-2"></i>Poll Management</h4>
+                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createPollModal">
+                        <i class="fas fa-plus me-2"></i>Create New Poll
+                    </button>
+                </div>
+                <div class="card-body" id="poll-management-container">
+                    <!-- Poll list will be rendered here -->
+                </div>
+            </div>
+            <!-- Blockchain Explorer Section -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="card shadow">
+                        <div class="card-header"><h4 class="mb-0"><i class="fas fa-link me-2"></i>Blockchain Explorer</h4></div>
+                        <div class="card-body" id="blockchain-explorer-container"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Create Poll Modal -->
+    <div class="modal fade" id="createPollModal" tabindex="-1" aria-labelledby="createPollModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createPollModalLabel">Create New Poll</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="create-poll-form">
+                        <div class="mb-3">
+                            <label for="poll-title" class="form-label">Poll Title</label>
+                            <input type="text" class="form-control" id="poll-title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="poll-description" class="form-label">Description</label>
+                            <textarea class="form-control" id="poll-description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="poll-candidates" class="form-label">Candidates</label>
+                            <textarea class="form-control" id="poll-candidates" rows="3" required placeholder="Enter names, separated by commas"></textarea>
+                            <div class="form-text">Separate candidate names with a comma (e.g., Alice, Bob, Charlie).</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="app.createPoll()">Create Poll</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Simple SHA256 for simulation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <script>
+        const app = {
+            // --- DATA STORE (Simulating backend JSON files) ---
+            data: {
+                users: {},
+                polls: {},
+                blockchain: [],
+                voted_users: new Set(),
+            },
+
+            // --- SESSION MANAGEMENT ---
+            session: {
+                user: null,
+                role: null,
+            },
+
+            // --- INITIALIZATION ---
+            init() {
+                this.createPollModal = new bootstrap.Modal(document.getElementById('createPollModal'));
+                this.loadData();
+                const initialPage = this.session.user ? 'index' : 'index';
+                this.navigateTo(initialPage);
+                document.getElementById('login-form').addEventListener('submit', (e) => { e.preventDefault(); this.login(); });
+                document.getElementById('register-form').addEventListener('submit', (e) => { e.preventDefault(); this.register(); });
+                document.getElementById('create-poll-form').addEventListener('submit', (e) => { e.preventDefault(); this.createPoll(); });
+            },
+
+            loadData() {
+                const users = localStorage.getItem('blockvote_users');
+                const polls = localStorage.getItem('blockvote_polls');
+                const blockchain = localStorage.getItem('blockvote_blockchain');
+                const voted_users = localStorage.getItem('blockvote_voted_users');
+                const session = localStorage.getItem('blockvote_session');
+
+                if (users) {
+                    this.data.users = JSON.parse(users);
+                } else {
+                    this.data.users['admin'] = { password: 'admin', role: 'admin' };
+                    this.saveData('users');
+                }
+
+                if (polls && Object.keys(JSON.parse(polls)).length > 0) {
+                    this.data.polls = JSON.parse(polls);
+                } else {
+                     this.data.polls["poll_1"] = {
+                        "title": "Student Council Election",
+                        "description": "Vote for your student council representative",
+                        "candidates": ["Alice", "Bob", "Charlie"],
+                        "active": true,
+                    };
+                    this.saveData('polls');
+                }
+
+                if (blockchain) this.data.blockchain = JSON.parse(blockchain);
+                if (voted_users) this.data.voted_users = new Set(JSON.parse(voted_users));
+                if (session) this.session = JSON.parse(session);
+
+                if(this.data.blockchain.length === 0) {
+                    this.createBlock("0", "Genesis", "genesis");
+                }
+            },
+
+            saveData(key) {
+                if (key === 'users') localStorage.setItem('blockvote_users', JSON.stringify(this.data.users));
+                if (key === 'polls') localStorage.setItem('blockvote_polls', JSON.stringify(this.data.polls));
+                if (key === 'blockchain') localStorage.setItem('blockvote_blockchain', JSON.stringify(this.data.blockchain));
+                if (key === 'voted_users') localStorage.setItem('blockvote_voted_users', JSON.stringify(Array.from(this.data.voted_users)));
+                if (key === 'session') localStorage.setItem('blockvote_session', JSON.stringify(this.session));
+            },
+
+            // --- AUTHENTICATION ---
+            login() {
+                const username = document.getElementById('login-username').value;
+                const pass = document.getElementById('login-password').value;
+                const user = this.data.users[username];
+
+                if (user && user.password === pass) {
+                    this.session.user = username;
+                    this.session.role = user.role;
+                    this.saveData('session');
+                    this.showFlash(`Welcome back, ${username}!`, 'success');
+                    this.navigateTo(user.role === 'admin' ? 'admin' : 'vote');
+                } else {
+                    this.showFlash('Invalid username or password.', 'danger');
+                }
+            },
+
+            register() {
+                const username = document.getElementById('register-username').value;
+                const pass = document.getElementById('register-password').value;
+                const confirmPass = document.getElementById('register-confirm-password').value;
+
+                if (this.data.users[username]) {
+                    this.showFlash('Username already exists.', 'danger');
+                    return;
+                }
+                if (pass.length < 6) {
+                    this.showFlash('Password must be at least 6 characters long.', 'danger');
+                    return;
+                }
+                if (pass !== confirmPass) {
+                    this.showFlash('Passwords do not match.', 'danger');
+                    return;
+                }
+
+                this.data.users[username] = { password: pass, role: 'voter' };
+                this.saveData('users');
+                this.showFlash('Registration successful! Please login.', 'success');
+                this.navigateTo('login');
+            },
+
+            logout() {
+                this.session.user = null;
+                this.session.role = null;
+                this.saveData('session');
+                this.showFlash('You have been logged out.', 'info');
+                this.navigateTo('index');
+            },
+            
+            // --- ROUTING / NAVIGATION ---
+            navigateTo(pageId) {
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                document.getElementById(pageId).classList.add('active');
+                this.updateUI();
+            },
+
+            // --- UI RENDERING ---
+            updateUI() {
+                this.renderNavbar();
+                const activePage = document.querySelector('.page.active').id;
+                if (activePage === 'index') this.renderIndexPage();
+                if (activePage === 'vote') this.renderVotePage();
+                if (activePage === 'results') this.renderResultsPage();
+                if (activePage === 'admin') this.renderAdminPage();
+            },
+
+            renderNavbar() {
+                const mainLinks = document.getElementById('nav-main-links');
+                const userLinks = document.getElementById('nav-user-links');
+                let mainLinksHTML = `<li class="nav-item"><a class="nav-link" href="#" onclick="app.navigateTo('index')"><i class="fas fa-home me-1"></i>Home</a></li>`;
+                let userLinksHTML = '';
+
+                if (this.session.user) {
+                    if (this.session.role === 'admin') {
+                        mainLinksHTML += `<li class="nav-item"><a class="nav-link" href="#" onclick="app.navigateTo('admin')"><i class="fas fa-chart-bar me-1"></i>Dashboard</a></li>`;
+                    } else {
+                        mainLinksHTML += `<li class="nav-item"><a class="nav-link" href="#" onclick="app.navigateTo('vote')"><i class="fas fa-vote-yea me-1"></i>Vote</a></li>`;
+                    }
+                    mainLinksHTML += `<li class="nav-item"><a class="nav-link" href="#" onclick="app.navigateTo('results')"><i class="fas fa-chart-pie me-1"></i>Results</a></li>`;
+                    userLinksHTML = `
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-user me-1"></i>${this.session.user}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="app.logout()"><i class="fas fa-sign-out-alt me-1"></i>Logout</a></li>
+                            </ul>
+                        </li>`;
+                } else {
+                    userLinksHTML = `
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="app.navigateTo('login')"><i class="fas fa-sign-in-alt me-1"></i>Login</a></li>
+                        <li class="nav-item"><a class="nav-link" href="#" onclick="app.navigateTo('register')"><i class="fas fa-user-plus me-1"></i>Register</a></li>`;
+                }
+                mainLinks.innerHTML = mainLinksHTML;
+                userLinks.innerHTML = userLinksHTML;
+            },
+            
+            renderIndexPage() {
+                const heroButtons = document.getElementById('hero-buttons');
+                if (this.session.user) {
+                    const navTarget = this.session.role === 'admin' ? 'admin' : 'vote';
+                    const icon = this.session.role === 'admin' ? 'fa-chart-bar' : 'fa-vote-yea';
+                    heroButtons.innerHTML = `
+                        <a href="#" onclick="app.navigateTo('${navTarget}')" class="btn btn-light btn-lg"><i class="fas ${icon} me-2"></i>Go to Dashboard</a>
+                        <a href="#" onclick="app.logout()" class="btn btn-outline-light btn-lg"><i class="fas fa-sign-out-alt me-2"></i>Logout</a>
+                    `;
+                } else {
+                    heroButtons.innerHTML = `
+                        <a href="#" onclick="app.navigateTo('register')" class="btn btn-light btn-lg"><i class="fas fa-user-plus me-2"></i>Get Started</a>
+                        <a href="#" onclick="app.navigateTo('login')" class="btn btn-outline-light btn-lg"><i class="fas fa-sign-in-alt me-2"></i>Login</a>`;
+                }
+                this.renderActivePollsList(document.getElementById('active-polls-container'));
+            },
+
+            renderActivePollsList(container) {
+                 let html = '';
+                 const activePolls = Object.entries(this.data.polls).filter(([id, poll]) => poll.active);
+
+                 if (activePolls.length > 0) {
+                    html += `<div class="card mb-5"><div class="card-header"><h2 class="mb-0"><i class="fas fa-poll me-2"></i>Active Polls</h2></div><div class="card-body"><div class="row g-4">`;
+                    activePolls.forEach(([poll_id, poll]) => {
+                        html += `
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body">
+                                    <h5 class="card-title">${poll.title}</h5>
+                                    <p class="card-text text-muted">${poll.description}</p>
+                                    <button class="btn btn-primary" onclick="app.navigateTo('vote')">Vote Now</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    });
+                    html += `</div></div></div>`;
+                 }
+                 container.innerHTML = html;
+            },
+
+            renderVotePage() {
+                const container = document.getElementById('vote-polls-container');
+                let html = '';
+                const activePolls = Object.entries(this.data.polls).filter(([id, poll]) => poll.active);
+
+                if (activePolls.length === 0) {
+                    container.innerHTML = `<div class="text-center card p-5"><h3>No Active Polls</h3><p>There are currently no active polls available for voting.</p></div>`;
+                    return;
+                }
+
+                activePolls.forEach(([poll_id, poll]) => {
+                    const voteKey = `${this.session.user}_${poll_id}`;
+                    const hasVoted = this.data.voted_users.has(voteKey);
+
+                    html += `<div class="card shadow mb-4">
+                        <div class="card-header text-center"><h3 class="mb-0">${poll.title}</h3></div>
+                        <div class="card-body p-4">`;
+                    
+                    if (hasVoted) {
+                        html += `<div class="alert alert-warning">You have already voted in this poll.</div>`;
+                    } else {
+                        html += `<form onsubmit="event.preventDefault(); app.castVote('${poll_id}', this)">
+                            <div class="row g-4">`;
+                        poll.candidates.forEach(candidate => {
+                            html += `
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="vote-card card h-100" onclick="this.querySelector('input').checked = true; document.querySelectorAll('.vote-card').forEach(c=>c.classList.remove('selected')); this.classList.add('selected');">
+                                        <div class="card-body text-center p-4">
+                                            <i class="fas fa-user-tie fa-3x text-primary mb-3"></i>
+                                            <h4 class="card-title">${candidate}</h4>
+                                            <input type="radio" name="candidate" value="${candidate}" class="d-none" required>
+                                        </div>
+                                    </div>
+                                </div>`;
+                        });
+                        html += `</div>
+                            <div class="text-center mt-4"><button type="submit" class="btn btn-success btn-lg">Submit Vote</button></div>
+                        </form>`;
+                    }
+                    html += `</div></div>`;
+                });
+                container.innerHTML = html;
+            },
+
+            renderResultsPage() {
+                const resultsContainer = document.getElementById('results-container');
+                resultsContainer.innerHTML = ''; // Clear previous results
+
+                const allPolls = Object.entries(this.data.polls);
+
+                if (allPolls.length === 0) {
+                    resultsContainer.innerHTML = `<div class="col-12"><div class="text-center card p-5"><h3>No Polls Found</h3><p>There are no polls to show results for.</p></div></div>`;
+                    return;
+                }
+
+                allPolls.forEach(([pollId, pollData]) => {
+                    const votesForPoll = {};
+                    this.data.blockchain
+                        .filter(block => block.poll_id === pollId)
+                        .forEach(block => {
+                            votesForPoll[block.candidate] = (votesForPoll[block.candidate] || 0) + 1;
+                        });
+
+                    const totalVotes = Object.values(votesForPoll).reduce((sum, count) => sum + count, 0);
+                    
+                    let pollResultsHtml = `
+                        <div class="col-12 mb-4">
+                            <div class="card shadow">
+                                <div class="card-header"><h4 class="mb-0">${pollData.title}</h4></div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-lg-8">`;
+
+                    if (totalVotes === 0) {
+                        pollResultsHtml += `<p class="text-muted text-center mt-3">No votes have been cast in this poll yet.</p>`;
+                    } else {
+                        const sortedVotes = Object.entries(votesForPoll).sort((a, b) => b[1] - a[1]);
+                        sortedVotes.forEach(([candidate, vote_count]) => {
+                            const percentage = totalVotes > 0 ? ((vote_count / totalVotes) * 100).toFixed(1) : 0;
+                            pollResultsHtml += `
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>${candidate}</strong>
+                                        <span>${vote_count} Votes</span>
+                                    </div>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar" role="progressbar" style="width: ${percentage}%;" aria-valuenow="${percentage}">${percentage}%</div>
+                                    </div>
+                                </div>`;
+                        });
+                    }
+                    pollResultsHtml += `</div><div class="col-lg-4"><h5>Statistics</h5>`;
+
+                    if (totalVotes > 0) {
+                         const winner = Object.entries(votesForPoll).sort((a, b) => b[1] - a[1])[0];
+                         pollResultsHtml += `
+                            <div class="alert alert-info">
+                                <p class="mb-1"><strong>Total Votes:</strong> ${totalVotes}</p>
+                                <p class="mb-0"><strong>Current Leader:</strong> ${winner[0]} (${winner[1]} votes)</p>
+                            </div>`;
+                    } else {
+                        pollResultsHtml += `<p class="text-muted">Awaiting votes...</p>`;
+                    }
+
+                    pollResultsHtml += `</div></div></div></div></div>`;
+                    resultsContainer.innerHTML += pollResultsHtml;
+                });
+            },
+
+            renderAdminPage() {
+                // Render Poll Management
+                const pollContainer = document.getElementById('poll-management-container');
+                let pollHtml = '<div class="list-group">';
+                const polls = Object.entries(this.data.polls);
+                if (polls.length === 0) {
+                    pollHtml += '<p class="text-center text-muted">No polls created yet. Click "Create New Poll" to start.</p>';
+                } else {
+                    polls.forEach(([id, poll]) => {
+                        const status = poll.active ? 'Active' : 'Inactive';
+                        const statusClass = poll.active ? 'success' : 'secondary';
+                        const toggleAction = poll.active ? 'Deactivate' : 'Activate';
+                        const toggleIcon = poll.active ? 'fa-pause' : 'fa-play';
+
+                        pollHtml += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="mb-1">${poll.title}</h5>
+                                    <small class="text-muted">${poll.description || 'No description'}</small>
+                                </div>
+                                <div>
+                                    <span class="badge bg-${statusClass} me-3">${status}</span>
+                                    <button class="btn btn-outline-warning btn-sm me-2" title="${toggleAction}" onclick="app.togglePollStatus('${id}')"><i class="fas ${toggleIcon}"></i></button>
+                                    <button class="btn btn-outline-danger btn-sm" title="Delete" onclick="app.deletePoll('${id}')"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </div>`;
+                    });
+                }
+                pollHtml += '</div>';
+                pollContainer.innerHTML = pollHtml;
+
+                // Render Blockchain Explorer
+                const blockchainContainer = document.getElementById('blockchain-explorer-container');
+                let blockchainHtml = '';
+                [...this.data.blockchain].reverse().forEach(block => {
+                    blockchainHtml += `
+                        <div class="block-item">
+                            <div class="d-flex justify-content-between">
+                                <span class="badge bg-primary">Block #${block.index}</span>
+                                <small>${new Date(block.timestamp).toLocaleString()}</small>
+                            </div>
+                            <hr>
+                            <div><strong>Candidate:</strong> ${block.candidate}</div>
+                            <div><strong>Poll ID:</strong> ${block.poll_id}</div>
+                            <div><strong>Voter Hash:</strong> <div class="block-hash">${block.voter_hash}</div></div>
+                            <div><strong>Prev Hash:</strong> <div class="block-hash">${block.previous_hash}</div></div>
+                            <div><strong>Block Hash:</strong> <div class="block-hash">${block.hash}</div></div>
+                        </div>`;
+                });
+                blockchainContainer.innerHTML = blockchainHtml;
+            },
+            
+            showFlash(message, category = 'info') {
+                const container = document.getElementById('flash-container');
+                const alert = document.createElement('div');
+                alert.className = `alert alert-${category} alert-dismissible fade show`;
+                alert.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+                container.appendChild(alert);
+                setTimeout(() => alert.remove(), 5000);
+            },
+
+            // --- POLL MANAGEMENT ---
+            createPoll() {
+                const title = document.getElementById('poll-title').value.trim();
+                const description = document.getElementById('poll-description').value.trim();
+                const candidatesText = document.getElementById('poll-candidates').value.trim();
+
+                if (!title || !candidatesText) {
+                    this.showFlash('Title and Candidates are required.', 'danger');
+                    return;
+                }
+
+                const candidates = candidatesText.split(',').map(c => c.trim()).filter(c => c);
+                if (candidates.length < 2) {
+                    this.showFlash('Please provide at least two candidates.', 'danger');
+                    return;
+                }
+
+                const pollId = `poll_${Date.now()}`;
+                this.data.polls[pollId] = { title, description, candidates, active: true };
+                this.saveData('polls');
+                
+                document.getElementById('create-poll-form').reset();
+                this.createPollModal.hide();
+                
+                this.showFlash('Poll created successfully!', 'success');
+                this.renderAdminPage();
+            },
+
+            deletePoll(pollId) {
+                const pollToDelete = this.data.polls[pollId];
+                if (pollToDelete && confirm(`Are you sure you want to delete the poll "${pollToDelete.title}"? This cannot be undone.`)) {
+                    delete this.data.polls[pollId];
+                    this.saveData('polls');
+                    this.showFlash('Poll deleted successfully.', 'info');
+                    this.renderAdminPage();
+                }
+            },
+
+            togglePollStatus(pollId) {
+                this.data.polls[pollId].active = !this.data.polls[pollId].active;
+                this.saveData('polls');
+                const status = this.data.polls[pollId].active ? 'activated' : 'deactivated';
+                this.showFlash(`Poll has been ${status}.`, 'success');
+                this.renderAdminPage();
+            },
+
+            // --- BLOCKCHAIN LOGIC ---
+            hash(data) {
+                const string = typeof data === 'object' ? JSON.stringify(data, Object.keys(data).sort()) : String(data);
+                return CryptoJS.SHA256(string).toString();
+            },
+
+            createBlock(voter_id, candidate, poll_id) {
+                const block = {
+                    index: this.data.blockchain.length + 1,
+                    timestamp: Date.now(),
+                    voter_hash: this.hash(voter_id),
+                    candidate: candidate,
+                    poll_id: poll_id,
+                    previous_hash: this.data.blockchain.length > 0 ? this.data.blockchain[this.data.blockchain.length - 1].hash : '0',
+                };
+                block.hash = this.hash(block);
+                this.data.blockchain.push(block);
+                this.saveData('blockchain');
+            },
+
+            castVote(poll_id, form) {
+                const selectedCandidate = form.querySelector('input[name="candidate"]:checked');
+                if (!selectedCandidate) {
+                    this.showFlash('Please select a candidate.', 'warning');
+                    return;
+                }
+                const candidate = selectedCandidate.value;
+                const voteKey = `${this.session.user}_${poll_id}`;
+
+                this.createBlock(this.session.user, candidate, poll_id);
+                this.data.voted_users.add(voteKey);
+                this.saveData('voted_users');
+
+                this.showFlash('Your vote has been successfully recorded!', 'success');
+                this.navigateTo('results');
+            }
+        };
+
+        // Initialize the application when the DOM is ready
+        document.addEventListener('DOMContentLoaded', () => app.init());
+    </script>
+</body>
+</html>
